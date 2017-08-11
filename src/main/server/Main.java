@@ -20,7 +20,7 @@ public class Main {
 
         //  Socket to talk to clients
         ZMQ.Socket responder = context.socket(ZMQ.REP);
-        responder.bind("tcp://*:5555");
+        responder.bind("tcp://*:8743");
         
         new Thread(() -> {
             Scanner sc = new Scanner(System.in);
