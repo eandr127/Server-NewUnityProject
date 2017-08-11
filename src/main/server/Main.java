@@ -90,9 +90,6 @@ public class Main {
             else if(message.toUser.isPresent() && message.toUser.get().username.equals(user.username)) {
                 user.addQueuedMessage(message);
             }
-            else if(message.from.username.equals(user.username)) {
-                user.addQueuedMessage(message);
-            }
         }
     }
     
