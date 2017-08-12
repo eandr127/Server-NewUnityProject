@@ -323,7 +323,16 @@ public class Requestor {
                         return String.valueOf(RESULT_BAD_REQUEST);
                     }
                     
-                    message = new Message(this.user, Main.getUser(username), arguments[2], arguments[3]);
+                    User user = null;
+                    
+                    try {
+                         user = Main.getUser(username);
+                    }
+                    catch(NoSuchElementException e) {
+                        return String.valueOf(RESULT_UNKNOWN_USERNAME);
+                    }
+                    
+                    message = new Message(this.user, user, arguments[2], arguments[3]);
                     
                     Main.distributeNewMessage(message);
                 }
