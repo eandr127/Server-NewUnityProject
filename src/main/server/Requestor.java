@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class Requestor {
     public static final int CHANGE_CONNECTED = 1;
@@ -51,6 +53,9 @@ public class Requestor {
     // () -> void
     public static final int REQUEST_LOGOUT = 11;
     
+    // () -> void
+    public static final int REQUEST_KEEP_ALIVE = 12;
+    
     public static final int RESULT_SUCCESS = 0;
     public static final int RESULT_COULD_NOT_CONNECT = -1;
     public static final int RESULT_USERNAME_TAKEN = -2;
@@ -80,11 +85,36 @@ public class Requestor {
         return requestor;
     }
     
+    public static void stopAllTimers() {
+        for(Requestor requestor : requestors) {
+            requestor.timer.cancel();
+        }
+    }
+    
     private User user;
     public final String worker;
+    public final Timer timer;
     
     private Requestor(String worker) {
         this.worker = worker;
+        timer = new Timer();
+        timer.schedule(new TimerTask() {
+
+            @Override
+            public void run() {
+                kickUser();
+            }
+            
+        }, 30000);
+    }
+    
+    private void kickUser() {
+        requestors.remove(this);
+        
+        if(user != null) {
+            Main.users.remove(user);
+            Main.distributeUserUpdate(user, CHANGE_DISCONNECTED);
+        }
     }
     
     public boolean checkLoggedIn() {
@@ -337,6 +367,18 @@ public class Requestor {
                     Main.distributeNewMessage(message);
                 }
                 
+                return String.valueOf(RESULT_SUCCESS);
+            }
+            case REQUEST_KEEP_ALIVE: {
+                timer.cancel();
+                timer.schedule(new TimerTask() {
+
+                    @Override
+                    public void run() {
+                        kickUser();
+                    }
+                    
+                }, 30000);
                 return String.valueOf(RESULT_SUCCESS);
             }
             case REQUEST_LOGOUT: {

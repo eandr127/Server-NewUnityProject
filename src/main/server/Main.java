@@ -47,6 +47,9 @@ public class Main {
             
             responder.send(reply.getBytes(), 0);
         }
+        
+        Requestor.stopAllTimers();
+        
         responder.close();
         context.term();
     }
