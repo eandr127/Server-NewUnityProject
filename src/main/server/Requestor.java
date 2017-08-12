@@ -79,6 +79,8 @@ public class Requestor {
     public static final int RESULT_BAD_REQUEST = -7;
     public static final int RESULT_FAILURE_UNKNOWN = -8;
     
+    public static final int TIMEOUT = 30000;
+    
     private static final Set<Requestor> requestors = new HashSet<>();
     
     public static Requestor findOrCreateRequestor(String name) {
@@ -113,7 +115,7 @@ public class Requestor {
     private Requestor(String worker) {
         this.worker = worker;
         timer = Executors.newSingleThreadScheduledExecutor();
-        timer.schedule(this::kickUser, 30000, TimeUnit.MILLISECONDS);
+        timer.schedule(this::kickUser, TIMEOUT, TimeUnit.MILLISECONDS);
     }
     
     private void kickUser() {
@@ -391,7 +393,7 @@ public class Requestor {
             case REQUEST_KEEP_ALIVE: {
                 timer.shutdownNow();
                 timer = Executors.newSingleThreadScheduledExecutor();
-                timer.schedule(this::kickUser, 30000, TimeUnit.MILLISECONDS);
+                timer.schedule(this::kickUser, TIMEOUT, TimeUnit.MILLISECONDS);
                 return String.valueOf(RESULT_SUCCESS);
             }
             case REQUEST_LOGOUT: {
