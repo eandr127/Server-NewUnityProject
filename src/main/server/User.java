@@ -1,15 +1,25 @@
 package main.server;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Base64.Decoder;
+import java.util.Base64.Encoder;
+
+import javax.imageio.ImageIO;
 
 public class User {
     public final Requestor requestor;
     public final String username;
     
     public String nickname;
+    public BufferedImage image;
     
     public final List<Message> messages = new ArrayList<>();
     public final Map<ChatRoom, List<Integer>> chatUpdates = new HashMap<>();
@@ -58,5 +68,27 @@ public class User {
         Map.Entry<User, List<Integer>> updates = userUpdates.entrySet().iterator().next();
         userUpdates.remove(updates.getKey());
         return updates;
+    }
+    
+    public static String encodeToString(BufferedImage image) throws IOException {
+        Encoder encoder = Base64.getEncoder();
+        ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", bytesOut);
+        byte[] bytes = bytesOut.toByteArray();
+        bytesOut.close();
+        
+        return encoder.encodeToString(bytes);
+    }
+    
+    public static BufferedImage decodeImage(String imageString) throws IOException {
+        BufferedImage image = null;
+        byte[] imageData;
+        Decoder decoder = Base64.getDecoder();
+        imageData = decoder.decode(imageString);
+        ByteArrayInputStream bytesIn = new ByteArrayInputStream(imageData);
+        image = ImageIO.read(bytesIn);
+        bytesIn.close();
+        
+        return image;
     }
 }

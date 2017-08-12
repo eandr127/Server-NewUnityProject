@@ -1,5 +1,7 @@
 package main.server;
 
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.HashSet;
@@ -15,6 +17,7 @@ public class Requestor {
     public static final int CHANGE_CONNECTED = 1;
     public static final int CHANGE_DISCONNECTED = 2;
     public static final int CHANGE_CHANGED_NICKNAME = 3;
+    public static final int CHANGE_CHANGED_PICTURE = 4;
     
     // These also all return the result code for the Requestor
     
@@ -56,6 +59,15 @@ public class Requestor {
     
     // () -> void
     public static final int REQUEST_KEEP_ALIVE = 12;
+    
+    // String nickname -> void
+    public static final int REQUEST_SET_NICKNAME = 13;
+    
+    // String username -> imagedatastream
+    public static final int REQUEST_USER_PICTURE = 14;
+    
+    // String imagedatastream -> void
+    public static final int REQUEST_SET_USER_PICTURE = 15;
     
     public static final int RESULT_SUCCESS = 0;
     public static final int RESULT_COULD_NOT_CONNECT = -1;
@@ -365,6 +377,17 @@ public class Requestor {
                 
                 return String.valueOf(RESULT_SUCCESS);
             }
+            case REQUEST_SET_NICKNAME: {
+                if(!checkLoggedIn()) {
+                    return String.valueOf(RESULT_NOT_LOGGED_IN);
+                }
+                if(arguments.length != 1) {
+                    return String.valueOf(RESULT_BAD_REQUEST);
+                }
+                
+                user.nickname = arguments[0];
+                Main.distributeUserUpdate(user, CHANGE_CHANGED_NICKNAME);
+            }
             case REQUEST_KEEP_ALIVE: {
                 timer.shutdownNow();
                 timer = Executors.newSingleThreadScheduledExecutor();
@@ -381,6 +404,76 @@ public class Requestor {
                 user = null;
                 
                 return String.valueOf(RESULT_SUCCESS);
+            }
+            case REQUEST_USER_PICTURE: {
+                if(!checkLoggedIn()) {
+                    return String.valueOf(RESULT_NOT_LOGGED_IN);
+                }
+                if(arguments.length != 1) {
+                    return String.valueOf(RESULT_BAD_REQUEST);
+                }
+                
+                User user = null;
+                
+                try {
+                    user = Main.getUser(arguments[0]);
+                }
+                catch(NoSuchElementException e) {
+                    return String.valueOf(RESULT_UNKNOWN_USERNAME);
+                }
+                
+                try {
+                    if(user.image != null) {
+                        return String.valueOf(RESULT_SUCCESS) + "\n"
+                             + String.valueOf(true) + "\n"
+                             + User.encodeToString(user.image);
+                    }
+                    else {
+                        return String.valueOf(RESULT_SUCCESS) + "\n"
+                             + String.valueOf(false);
+                    }
+                }
+                catch(IOException e) {
+                    return String.valueOf(RESULT_FAILURE_UNKNOWN);
+                }
+            }
+            case REQUEST_SET_USER_PICTURE: {
+                if(!checkLoggedIn()) {
+                    return String.valueOf(RESULT_NOT_LOGGED_IN);
+                }
+                if(arguments.length != 2) {
+                    return String.valueOf(RESULT_BAD_REQUEST);
+                }
+                
+                
+                boolean hasImage = Boolean.parseBoolean(arguments[0]);
+                
+                if(hasImage) {
+                    try {
+                        BufferedImage image = User.decodeImage(arguments[1]);
+                        user.image = image;
+                        Main.distributeUserUpdate(user, CHANGE_CHANGED_PICTURE);
+                        return String.valueOf(RESULT_SUCCESS);
+                    }
+                    catch(IOException e) {
+                        return String.valueOf(RESULT_BAD_REQUEST);
+                    }
+                }
+                
+                try {
+                    if(user.image != null) {
+                        return String.valueOf(RESULT_SUCCESS) + "\n"
+                             + String.valueOf(true) + "\n"
+                             + User.encodeToString(user.image);
+                    }
+                    else {
+                        return String.valueOf(RESULT_SUCCESS) + "\n"
+                             + String.valueOf(false);
+                    }
+                }
+                catch(IOException e) {
+                    return String.valueOf(RESULT_FAILURE_UNKNOWN);
+                }
             }
             default: {
                 return String.valueOf(RESULT_FAILURE_UNKNOWN);
