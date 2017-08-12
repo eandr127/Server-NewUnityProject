@@ -69,6 +69,13 @@ public class Requestor {
     // String imagedatastream -> void
     public static final int REQUEST_SET_USER_PICTURE = 15;
     
+    // String chatroom name -> chat id
+    public static final int REQUEST_CREATE_CHAT_ROOM = 16;
+    
+    // int chatID -> void
+    public static final int REQUEST_DELETE_CHAT_ROOM = 17;
+    
+    
     public static final int RESULT_SUCCESS = 0;
     public static final int RESULT_COULD_NOT_CONNECT = -1;
     public static final int RESULT_USERNAME_TAKEN = -2;
@@ -79,7 +86,7 @@ public class Requestor {
     public static final int RESULT_BAD_REQUEST = -7;
     public static final int RESULT_FAILURE_UNKNOWN = -8;
     
-    public static final int TIMEOUT = 30000;
+    public static final int TIMEOUT = 3000000;
     
     private static final Set<Requestor> requestors = new HashSet<>();
     
@@ -476,6 +483,50 @@ public class Requestor {
                 catch(IOException e) {
                     return String.valueOf(RESULT_FAILURE_UNKNOWN);
                 }
+            }
+            case REQUEST_CREATE_CHAT_ROOM: {
+                if(!checkLoggedIn()) {
+                    return String.valueOf(RESULT_NOT_LOGGED_IN);
+                }
+                if(arguments.length != 1) {
+                    return String.valueOf(RESULT_BAD_REQUEST);
+                }
+                
+                int id = -1;
+                while(Main.hasChat(++id));
+                
+                ChatRoom chat = new ChatRoom(id, arguments[id]);
+                Main.distributeChatUpdate(chat, CHANGE_CONNECTED);
+                Main.chats.add(chat);
+                return String.valueOf(RESULT_SUCCESS) + "\n"
+                     + String.valueOf(id);
+            }
+            case REQUEST_DELETE_CHAT_ROOM: {
+                if(!checkLoggedIn()) {
+                    return String.valueOf(RESULT_NOT_LOGGED_IN);
+                }
+                if(arguments.length != 1) {
+                    return String.valueOf(RESULT_BAD_REQUEST);
+                }
+                
+                int id = -1;
+                try {
+                    id = Integer.parseInt(arguments[0]);
+                }
+                catch(NumberFormatException e) {
+                    return String.valueOf(RESULT_BAD_REQUEST);
+                }
+                
+                ChatRoom chat = null;
+                try {
+                    chat = Main.getChat(id);
+                }
+                catch(NoSuchElementException e) {
+                    return String.valueOf(RESULT_UNKNOWN_CHAT);
+                }
+                
+                Main.distributeChatUpdate(chat, CHANGE_DISCONNECTED);
+                Main.chats.remove(chat);
             }
             default: {
                 return String.valueOf(RESULT_FAILURE_UNKNOWN);
