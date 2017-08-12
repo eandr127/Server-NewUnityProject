@@ -7,9 +7,6 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -91,7 +88,7 @@ public class Requestor {
     
     public static void stopAllTimers() {
         for(Requestor requestor : requestors) {
-            if(requestor.timer.isShutdown()) {
+            if(!requestor.timer.isShutdown()) {
                 requestor.timer.shutdown();
             }
         }
@@ -369,7 +366,7 @@ public class Requestor {
                 return String.valueOf(RESULT_SUCCESS);
             }
             case REQUEST_KEEP_ALIVE: {
-                timer.shutdown();
+                timer.shutdownNow();
                 timer = Executors.newSingleThreadScheduledExecutor();
                 timer.schedule(this::kickUser, 30000, TimeUnit.MILLISECONDS);
                 return String.valueOf(RESULT_SUCCESS);
