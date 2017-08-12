@@ -86,7 +86,7 @@ public class Requestor {
     public static final int RESULT_BAD_REQUEST = -7;
     public static final int RESULT_FAILURE_UNKNOWN = -8;
     
-    public static final int TIMEOUT = 3000000;
+    public static final int TIMEOUT = 30000;
     
     private static final Set<Requestor> requestors = new HashSet<>();
     
