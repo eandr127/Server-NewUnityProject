@@ -9,6 +9,10 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Requestor {
     public static final int CHANGE_CONNECTED = 1;
@@ -87,25 +91,20 @@ public class Requestor {
     
     public static void stopAllTimers() {
         for(Requestor requestor : requestors) {
-            requestor.timer.cancel();
+            if(requestor.timer.isShutdown()) {
+                requestor.timer.shutdown();
+            }
         }
     }
     
     private User user;
     public final String worker;
-    public final Timer timer;
+    private ScheduledExecutorService  timer;
     
     private Requestor(String worker) {
         this.worker = worker;
-        timer = new Timer();
-        timer.schedule(new TimerTask() {
-
-            @Override
-            public void run() {
-                kickUser();
-            }
-            
-        }, 30000);
+        timer = Executors.newSingleThreadScheduledExecutor();
+        timer.schedule(this::kickUser, 30000, TimeUnit.MILLISECONDS);
     }
     
     private void kickUser() {
@@ -370,15 +369,9 @@ public class Requestor {
                 return String.valueOf(RESULT_SUCCESS);
             }
             case REQUEST_KEEP_ALIVE: {
-                timer.cancel();
-                timer.schedule(new TimerTask() {
-
-                    @Override
-                    public void run() {
-                        kickUser();
-                    }
-                    
-                }, 30000);
+                timer.shutdown();
+                timer = Executors.newSingleThreadScheduledExecutor();
+                timer.schedule(this::kickUser, 30000, TimeUnit.MILLISECONDS);
                 return String.valueOf(RESULT_SUCCESS);
             }
             case REQUEST_LOGOUT: {
