@@ -13,6 +13,7 @@ public class Main {
     public static List<User> users = new ArrayList<>();
     public static List<ChatRoom> chats = new ArrayList<>();
     
+    // These are volatile because they are accessed on different threads
     public static volatile boolean stop = false;
     public static volatile long stopTime;
     
@@ -24,9 +25,11 @@ public class Main {
         responder.bind("tcp://*:8743");
         
         new Thread(() -> {
+            // Console command viewer
             Scanner sc = new Scanner(System.in);
             String line = null;
             while((line = sc.nextLine()) != null) {
+                // Wait 5 seconds to close so clients will get RESULT_NOT_LOGGED_IN and return to login screen
                 if(line.trim().equalsIgnoreCase("/stop")) {
                     sc.close();
                     stop = true;
@@ -37,6 +40,7 @@ public class Main {
                 else if(line.toLowerCase().trim().startsWith("/addchat")) {
                     String[] command = line.split(" ");
                     
+                    // Start from 0 and continue to increment until free id is found
                     int id = -1;
                     while(Main.hasChat(++id));
                     
@@ -44,6 +48,7 @@ public class Main {
                     
                     System.out.println(chat.id + " " + chat.name);
                     
+                    // Add chat to server, and announce change to server
                     distributeChatUpdate(chat, Requestor.CHANGE_CONNECTED);
                     chats.add(chat);
                 }
@@ -52,6 +57,7 @@ public class Main {
                     
                     List<ChatRoom> chats = new ArrayList<>();
                     try {
+                        // Remove single chat by ID
                         int id = Integer.parseInt(command[1]);
                         
                         try {
@@ -62,6 +68,7 @@ public class Main {
                         }
                     }
                     catch(NumberFormatException e) {
+                        // If no ID was given, remove all by name
                         for(ChatRoom chat : Main.chats) {
                             if(chat.name.equals(command[1])) {
                                 chats.add(chat);
@@ -69,40 +76,66 @@ public class Main {
                         }
                     }
                     
+                    // Remove chat and distribute update
                     for(ChatRoom chat : chats) {
                         distributeChatUpdate(chat, Requestor.CHANGE_DISCONNECTED);
                         Main.chats.remove(chat);
                     }
                 }
+                else if(line.toLowerCase().trim().startsWith("/removeuser") ) {
+                    String[] command = line.split(" ");
+                    
+                    if(!hasUser(command[1])) {
+                        System.out.println("User not found");
+                    }
+                    
+                    // Get user from username
+                    User user = getUser(command[1]);
+                    
+                    // Remove user and distribute update
+                    Main.distributeUserUpdate(user, Requestor.CHANGE_DISCONNECTED);
+                    Main.users.remove(user);
+                    user.requestor.removeUser();
+                }
             }
         }).start();
         
+        // Stop on thread interrupt or when the server has been stopping for more than 5 seconds
         while (!Thread.currentThread().isInterrupted() && (!stop || System.currentTimeMillis() - stopTime < 5000)) {
             
+            // Don't block to allow server to stop if necessary
             String request = responder.recvStr(ZMQ.NOBLOCK);
             
+            // Loop until a request was received
             if(request != null) {
+                // Tell the requester that the server is stopping so that it can log out
                 if(stop) {
-                    responder.send(String.valueOf(Requestor.RESULT_NOT_LOGGED_IN));
+                    responder.send(String.valueOf(Requestor.RESULT_COULD_NOT_CONNECT));
                 }
                 else {
-                    // Wait for next request from the client
+                    // Separate each part of the request by newlines
                     String[] paramaters = request.split("\\n");
                     
+                    // Get information for requester, or create it if it doesn't exist
                     Requestor requestor = Requestor.findOrCreateRequestor(paramaters[0]);
                     
+                    // With the information about the requester, parse the request making a reply to send back to the requester
                     String reply = requestor.handleRequest(paramaters[1], Arrays.copyOfRange(paramaters, 2, paramaters.length));
                     
+                    // Send the data
                     responder.send(reply.getBytes(), 0);
                 }
             }
         }
         
+        // Stop timeout timers so program can exit
         Requestor.stopAllTimers();
         
+        // Close ZeroQM server
         responder.close();
         context.term();
         
+        // In case of occasional lingering thread, exit program
         System.exit(0);
     }
     
@@ -148,10 +181,13 @@ public class Main {
     }
     
     public static void distributeNewMessage(Message message) {
+        // Distribute chat messages to correct users
         for(User user : users) {
+            // Send new message to everyone except sender if in chat
             if(message.toChat.isPresent() && !message.from.username.equals(user.username)) {
                 user.addQueuedMessage(message);
             }
+            // Send message to user addressed if not in chat
             else if(message.toUser.isPresent() && message.toUser.get().username.equals(user.username)) {
                 user.addQueuedMessage(message);
             }
@@ -159,12 +195,14 @@ public class Main {
     }
     
     public static void distributeChatUpdate(ChatRoom chat, int update) {
+        // Add updates to users so the update will not be removed from each user until they are given it
         for(User user : users) {
             user.addQueudChatUpdate(chat, update);
         }
     }
     
     public static void distributeUserUpdate(User user, int update) {
+        // Add updates to users so the update will not be removed from each user until they are given it
         for(User onlineUser : users) {
             onlineUser.addQueudUserUpdate(user, update);
         }

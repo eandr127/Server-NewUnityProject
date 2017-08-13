@@ -14,11 +14,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class Requestor {
+    // All update codes for users and/or chats
     public static final int CHANGE_CONNECTED = 1;
     public static final int CHANGE_DISCONNECTED = 2;
     public static final int CHANGE_CHANGED_NICKNAME = 3;
     public static final int CHANGE_CHANGED_PICTURE = 4;
     
+    // All request codes recieved from clients so we know what they want us to do
     // These also all return the result code for the Requestor
     
     // String username, string nickname -> void
@@ -73,6 +75,7 @@ public class Requestor {
     public static final int REQUEST_CREATE_CHAT_ROOM = 16;
     
     
+    // Result codes tell the client what happened with the request
     public static final int RESULT_SUCCESS = 0;
     public static final int RESULT_COULD_NOT_CONNECT = -1;
     public static final int RESULT_USERNAME_TAKEN = -2;
@@ -83,11 +86,14 @@ public class Requestor {
     public static final int RESULT_BAD_REQUEST = -7;
     public static final int RESULT_FAILURE_UNKNOWN = -8;
     
+    // Timeout before kicking requester
+    // This timer is reset every client main loop so this should be a fair time
     public static final int TIMEOUT = 30000;
     
     private static final Set<Requestor> requestors = new HashSet<>();
     
     public static Requestor findOrCreateRequestor(String name) {
+        // Look for requester with same UUID
         Requestor requestor = null;
         for(Requestor r : requestors) {
             if(r.worker.equals(name)) {
@@ -96,6 +102,7 @@ public class Requestor {
             }
         }
         
+        // If a requester couldn't be found, create one
         if(requestor == null) {
             requestor = new Requestor(name);
             requestors.add(requestor);
@@ -105,6 +112,7 @@ public class Requestor {
     }
     
     public static void stopAllTimers() {
+        // Shut down all times so server can exit
         for(Requestor requestor : requestors) {
             if(!requestor.timer.isShutdown()) {
                 requestor.timer.shutdownNow();
@@ -114,7 +122,7 @@ public class Requestor {
     
     private User user;
     public final String worker;
-    private ScheduledExecutorService  timer;
+    private ScheduledExecutorService timer;
     
     private Requestor(String worker) {
         this.worker = worker;
@@ -123,9 +131,12 @@ public class Requestor {
     }
     
     private void kickUser() {
+        // Log user out if not already, and remove requester information about user
+        // This means a requester won't hang around until the server closes
         requestors.remove(this);
         
         if(user != null) {
+            // Kick user
             Main.users.remove(user);
             Main.distributeUserUpdate(user, CHANGE_DISCONNECTED);
         }
@@ -135,9 +146,14 @@ public class Requestor {
         return user != null;
     }
     
+    public void removeUser() {
+        user = null;
+    }
+    
     public String handleRequest(String requestLine, String[] arguments) {
         int requestId = -1;
         
+        // Find out what user is looking for
         try {
             requestId = Integer.parseInt(requestLine);
         }
@@ -145,7 +161,10 @@ public class Requestor {
             return String.valueOf(RESULT_BAD_REQUEST);
         }
         
+        // Perform correct task and return correct response based on the type of request
         switch(requestId) {
+            // Make a user with a username and nickname to add to the server
+            // This also allows most other tasks to be used that could before
             case REQUEST_LOGIN: {
                 if(arguments.length != 2) {
                     return String.valueOf(RESULT_BAD_REQUEST);
@@ -154,12 +173,14 @@ public class Requestor {
                     return String.valueOf(RESULT_USERNAME_TAKEN);
                 }
                 else {
+                    // Create new user 
                     user = new User(this, arguments[0], arguments[1]);
                     Main.distributeUserUpdate(user, CHANGE_CONNECTED);
                     Main.users.add(user);
                     return String.valueOf(RESULT_SUCCESS);
                 }
             }
+            // Returns the number of chats so that they can be looped through
             case REQUEST_CHATS_ONLINE: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -169,6 +190,7 @@ public class Requestor {
                          + String.valueOf(Main.chats.size()); 
                 }
             }
+            // Requests the ID of a chat by the index
             case REQUEST_CHAT: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -186,6 +208,7 @@ public class Requestor {
                     return String.valueOf(RESULT_BAD_REQUEST);
                 }
             }
+            // Requests the name of a chat by ID
             case REQUEST_CHAT_NAME: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -206,6 +229,8 @@ public class Requestor {
                     return String.valueOf(RESULT_UNKNOWN_CHAT);
                 }
             }
+            // Sends all chat updates for single chat
+            // This is meant to be called until it returns no updates
             case REQUEST_CHAT_UPDATES: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -228,6 +253,7 @@ public class Requestor {
                 }
                 
             }
+            // Returns the number of users so that they can be looped through
             case REQUEST_USERS_ONLINE: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -237,6 +263,7 @@ public class Requestor {
                          + String.valueOf(Main.users.size()); 
                 }
             }
+            // Requests the username of a user by the index
             case REQUEST_USER: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -254,6 +281,7 @@ public class Requestor {
                     return String.valueOf(RESULT_BAD_REQUEST);
                 }
             }
+            // Requests the nickname of a user by username
             case REQUEST_USER_NICKNAME: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -273,6 +301,8 @@ public class Requestor {
                     return String.valueOf(RESULT_UNKNOWN_USERNAME);
                 }
             }
+            // Sends all user updates for user chat
+            // This is meant to be called until it returns no updates
             case REQUEST_USER_UPDATES: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -295,6 +325,8 @@ public class Requestor {
                 }
                 
             }
+            // Sends one new unread message
+            // This is meant to be called until there are no new messages
             case REQUEST_NEW_MESSAGE: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -325,6 +357,7 @@ public class Requestor {
                     return String.valueOf(RESULT_SUCCESS);
                 }   
             }
+            // Sends a message to a user
             case REQUEST_SEND_MESSAGE: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -383,6 +416,7 @@ public class Requestor {
                 
                 return String.valueOf(RESULT_SUCCESS);
             }
+            // Changes the nickname of a user
             case REQUEST_SET_NICKNAME: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -394,6 +428,8 @@ public class Requestor {
                 user.nickname = arguments[0];
                 Main.distributeUserUpdate(user, CHANGE_CHANGED_NICKNAME);
             }
+            // Resets the timeout timer
+            // This is meant to be called every client main loop
             case REQUEST_KEEP_ALIVE: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -404,6 +440,7 @@ public class Requestor {
                 timer.schedule(this::kickUser, TIMEOUT, TimeUnit.MILLISECONDS);
                 return String.valueOf(RESULT_SUCCESS);
             }
+            // Logs the user out of the server
             case REQUEST_LOGOUT: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -415,6 +452,8 @@ public class Requestor {
                 
                 return String.valueOf(RESULT_SUCCESS);
             }
+            // Sends a Base64 string of the requested user's profile picture
+            // If there is no image, it will set a boolean to false and not return an image
             case REQUEST_USER_PICTURE: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -447,6 +486,8 @@ public class Requestor {
                     return String.valueOf(RESULT_FAILURE_UNKNOWN);
                 }
             }
+            // Sets the user's profile picture with a Base64 string that is decoded into an image
+            // If a boolean is set to false, it will also remove the current profile picture
             case REQUEST_SET_USER_PICTURE: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -485,6 +526,7 @@ public class Requestor {
                     return String.valueOf(RESULT_FAILURE_UNKNOWN);
                 }
             }
+            // Creates a chatroom with a given name
             case REQUEST_CREATE_CHAT_ROOM: {
                 if(!checkLoggedIn()) {
                     return String.valueOf(RESULT_NOT_LOGGED_IN);
@@ -502,6 +544,7 @@ public class Requestor {
                 return String.valueOf(RESULT_SUCCESS) + "\n"
                      + String.valueOf(id);
             }
+            // This could only really be caused by an out of date server
             default: {
                 return String.valueOf(RESULT_FAILURE_UNKNOWN);
             }

@@ -21,6 +21,7 @@ public class User {
     public String nickname;
     public BufferedImage image;
     
+    // Updates to return when requested
     public final List<Message> messages = new ArrayList<>();
     public final Map<ChatRoom, List<Integer>> chatUpdates = new HashMap<>();
     public final Map<User, List<Integer>> userUpdates = new HashMap<>();
@@ -37,12 +38,14 @@ public class User {
     }
     
     public Message getAndRemoveMessage() {
+        // Remove the message so the requester doesn't get it twice
         Message m = messages.get(0);
         messages.remove(0);
         return m;
     }
     
     public void addQueudChatUpdate(ChatRoom chat, int update) {
+        // Add update to queue for requester to request
         if(!chatUpdates.containsKey(chat)) {
             chatUpdates.put(chat, new ArrayList<>());
         }
@@ -51,12 +54,14 @@ public class User {
     }
     
     public Map.Entry<ChatRoom, List<Integer>> getAndRemoveChatUpdate() {
+        // Remove the chat update so the requester doesn't get it twice
         Map.Entry<ChatRoom, List<Integer>> updates = chatUpdates.entrySet().iterator().next();
         chatUpdates.remove(updates.getKey());
         return updates;
     }
     
     public void addQueudUserUpdate(User user, int update) {
+        // Add update to queue for requester to request
         if(!userUpdates.containsKey(user)) {
             userUpdates.put(user, new ArrayList<>());
         }
@@ -65,12 +70,14 @@ public class User {
     }
     
     public Map.Entry<User, List<Integer>> getAndRemoveUserUpdate() {
+        // Remove the user update so the requester doesn't get it twice
         Map.Entry<User, List<Integer>> updates = userUpdates.entrySet().iterator().next();
         userUpdates.remove(updates.getKey());
         return updates;
     }
     
     public static String encodeToString(BufferedImage image) throws IOException {
+        // Turns an image into a String Base64 that can be send over the network and read back into an image
         Encoder encoder = Base64.getEncoder();
         ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
         ImageIO.write(image, "png", bytesOut);
@@ -81,6 +88,7 @@ public class User {
     }
     
     public static BufferedImage decodeImage(String imageString) throws IOException {
+        // Turns a Base64 String received over the network to an image
         BufferedImage image = null;
         byte[] imageData;
         Decoder decoder = Base64.getDecoder();

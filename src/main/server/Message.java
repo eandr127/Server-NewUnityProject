@@ -5,6 +5,9 @@ import java.util.Optional;
 public class Message {
 
     public final User from;
+  /* Only one of these will be present at a time
+     because you can't send to one user and a chat
+     at the same time */
     public final Optional<User> toUser;
     public final Optional<ChatRoom> toChat;
     public final String message;
