@@ -82,63 +82,71 @@ public class Main {
                 else if(line.toLowerCase().trim().startsWith("/addchat")) {
                     String[] command = line.split(" ");
                     
-                    // Start from 0 and continue to increment until free id is found
-                    int id = -1;
-                    while(Main.hasChat(++id));
-                    
-                    ChatRoom chat = new ChatRoom(id, command[1]);
-                    
-                    System.out.println(chat.id + " " + chat.name);
-                    
-                    // Add chat to server, and announce change to server
-                    distributeChatUpdate(chat, Requestor.CHANGE_CONNECTED);
-                    chats.add(chat);
+                    if(command.length > 1) {
+                        // Start from 0 and continue to increment until free id is found
+                        int id = -1;
+                        while(Main.hasChat(++id));
+                        
+                        ChatRoom chat = new ChatRoom(id, command[1]);
+                        
+                        System.out.println(chat.id + " " + chat.name);
+                        
+                        // Add chat to server, and announce change to server
+                        distributeChatUpdate(chat, Requestor.CHANGE_CONNECTED);
+                        chats.add(chat);
+                    }
                 }
                 else if(line.toLowerCase().trim().startsWith("/removechat")) {
                     String[] command = line.split(" ");
-                    
-                    List<ChatRoom> chats = new ArrayList<>();
-                    try {
-                        // Remove single chat by ID
-                        int id = Integer.parseInt(command[1]);
-                        
+                    if(command.length > 1) {
+                        List<ChatRoom> chats = new ArrayList<>();
                         try {
-                            chats.add(getChat(id));
-                        }
-                        catch(NoSuchElementException e) {
-                            System.out.println("Chat not id found");
-                        }
-                    }
-                    catch(NumberFormatException e) {
-                        // If no ID was given, remove all by name
-                        for(ChatRoom chat : Main.chats) {
-                            if(chat.name.equals(command[1])) {
-                                chats.add(chat);
+                            // Remove single chat by ID
+                            int id = Integer.parseInt(command[1]);
+                            
+                            try {
+                                chats.add(getChat(id));
+                            }
+                            catch(NoSuchElementException e) {
+                                System.out.println("Chat not id found");
                             }
                         }
-                    }
-                    
-                    // Remove chat and distribute update
-                    for(ChatRoom chat : chats) {
-                        distributeChatUpdate(chat, Requestor.CHANGE_DISCONNECTED);
-                        Main.chats.remove(chat);
+                        catch(NumberFormatException e) {
+                            String name = line.replaceFirst("/removechat ", "");
+                            
+                            // If no ID was given, remove all by name
+                            for(ChatRoom chat : Main.chats) {
+                                if(chat.name.equals(name)) {
+                                    chats.add(chat);
+                                }
+                            }
+                        }
+                        
+                        // Remove chat and distribute update
+                        for(ChatRoom chat : chats) {
+                            distributeChatUpdate(chat, Requestor.CHANGE_DISCONNECTED);
+                            Main.chats.remove(chat);
+                        }
                     }
                 }
                 else if(line.toLowerCase().trim().startsWith("/removeuser") ) {
                     String[] command = line.split(" ");
-                    
-                    if(!hasUser(command[1])) {
-                        System.out.println("User not found");
+                    if(command.length > 1) {
+                        String name = line.replaceFirst("/removeuser ", "");
                         
-                    }
-                    else {
-                        // Get user from username
-                        User user = getUser(command[1]);
+                        if(!hasUser(name)) {
+                            System.out.println("User not found");
                         
-                        // Remove user and distribute update
-                        Main.distributeUserUpdate(user, Requestor.CHANGE_DISCONNECTED);
-                        Main.users.remove(user);
-                        user.requestor.removeUser();
+                        }
+                        else {
+                            // Get user from username
+                            User user = getUser(name);
+                            
+                            // Remove user and distribute update
+                            Main.distributeUserUpdate(user, Requestor.CHANGE_DISCONNECTED);
+                            Main.users.remove(user);
+                            user.requestor.removeUser();
+                        }
                     }
                 }
             }
