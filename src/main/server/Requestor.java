@@ -492,7 +492,7 @@ public class Requestor {
                 int id = -1;
                 while(Main.hasChat(++id));
                 
-                ChatRoom chat = new ChatRoom(id, arguments[id]);
+                ChatRoom chat = new ChatRoom(id, arguments[0]);
                 Main.distributeChatUpdate(chat, CHANGE_CONNECTED);
                 Main.chats.add(chat);
                 return String.valueOf(RESULT_SUCCESS) + "\n"
