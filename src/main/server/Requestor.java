@@ -107,7 +107,7 @@ public class Requestor {
     public static void stopAllTimers() {
         for(Requestor requestor : requestors) {
             if(!requestor.timer.isShutdown()) {
-                requestor.timer.shutdown();
+                requestor.timer.shutdownNow();
             }
         }
     }
@@ -395,6 +395,10 @@ public class Requestor {
                 Main.distributeUserUpdate(user, CHANGE_CHANGED_NICKNAME);
             }
             case REQUEST_KEEP_ALIVE: {
+                if(!checkLoggedIn()) {
+                    return String.valueOf(RESULT_NOT_LOGGED_IN);
+                }
+                
                 timer.shutdownNow();
                 timer = Executors.newSingleThreadScheduledExecutor();
                 timer.schedule(this::kickUser, TIMEOUT, TimeUnit.MILLISECONDS);

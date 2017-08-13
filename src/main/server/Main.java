@@ -13,7 +13,8 @@ public class Main {
     public static List<User> users = new ArrayList<>();
     public static List<ChatRoom> chats = new ArrayList<>();
     
-    public static final Thread MAIN = Thread.currentThread();
+    public static volatile boolean stop = false;
+    public static volatile long stopTime;
     
     public static void main(String[] args) throws InterruptedException {
         ZMQ.Context context = ZMQ.context(1);
@@ -28,10 +29,9 @@ public class Main {
             while((line = sc.nextLine()) != null) {
                 if(line.trim().equalsIgnoreCase("/stop")) {
                     sc.close();
-                    responder.close();
-                    System.setErr(null);
-                    Thread.setDefaultUncaughtExceptionHandler((st, fu) -> {});
-                    MAIN.interrupt();
+                    stop = true;
+                    stopTime = System.currentTimeMillis();
+                    System.out.println("Shutting down in 5 seconds");
                     break;
                 }
                 else if(line.toLowerCase().trim().startsWith("/addchat")) {
@@ -77,17 +77,25 @@ public class Main {
             }
         }).start();
         
-        while (!Thread.currentThread().isInterrupted()) {
+        while (!Thread.currentThread().isInterrupted() && (!stop || System.currentTimeMillis() - stopTime < 5000)) {
             
+            String request = responder.recvStr(ZMQ.NOBLOCK);
             
-            // Wait for next request from the client
-            String[] paramaters = responder.recvStr().split("\\n");
-            
-            Requestor requestor = Requestor.findOrCreateRequestor(paramaters[0]);
-
-            String reply = requestor.handleRequest(paramaters[1], Arrays.copyOfRange(paramaters, 2, paramaters.length));
-            
-            responder.send(reply.getBytes(), 0);
+            if(request != null) {
+                if(stop) {
+                    responder.send(String.valueOf(Requestor.RESULT_NOT_LOGGED_IN));
+                }
+                else {
+                    // Wait for next request from the client
+                    String[] paramaters = request.split("\\n");
+                    
+                    Requestor requestor = Requestor.findOrCreateRequestor(paramaters[0]);
+                    
+                    String reply = requestor.handleRequest(paramaters[1], Arrays.copyOfRange(paramaters, 2, paramaters.length));
+                    
+                    responder.send(reply.getBytes(), 0);
+                }
+            }
         }
         
         Requestor.stopAllTimers();
