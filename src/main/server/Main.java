@@ -102,6 +102,8 @@ public class Main {
         
         responder.close();
         context.term();
+        
+        System.exit(0);
     }
     
     public static boolean hasUser(String username) {
