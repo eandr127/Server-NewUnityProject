@@ -8,15 +8,57 @@ import java.util.Scanner;
 
 import org.zeromq.ZMQ;
 
+/**
+ * <P>
+ * This is the server for our messaging application. We use a pure Java
+ * implementation of ZeroMQ called JeroMQ. The API is exactly the same,
+ * but we do not need separate native files, and can package the server into
+ * a single JAR file.
+ * </P>
+ * <P>
+ * The overall server design is quite simple. When a user sends a request String,
+ * the sender is identified, and the request type is saved as an int. An object found or
+ * made for the requester. This object parses each request, separating arguments by newlines.
+ * A response has a response code (SUCCESS, FAILURE), and then returns what the requester asked for.
+ * </P>
+ * <P>
+ * A user must tell the server not to kick it at least every 30 seconds (although this should
+ * happen every client main loop). On server shutdown, the server will tell clients that it
+ * is shutting down for 5 seconds to give them a chance to disconnect gracefully.
+ * </P>
+ * 
+ * @author NewUnityProject (eandr127, Stealth, biscuitseed)
+ */
 public class Main {
 
+    /**
+     * A list of all users connected to the server
+     */
     public static List<User> users = new ArrayList<>();
+    
+    /**
+     * A list of all chats connected to the server
+     */
     public static List<ChatRoom> chats = new ArrayList<>();
     
     // These are volatile because they are accessed on different threads
+    /**
+     * Tells the server that it should be shutting down
+     */
     public static volatile boolean stop = false;
+    
+    /**
+     * Time when the server started shutting down
+     */
     public static volatile long stopTime;
     
+    /**
+     * Entry point for program, waits for requests and handles them.
+     * Also sets up a console command thread.
+     * 
+     * @param args Program arguments (unused)
+     * @throws InterruptedException Will be thrown if thread is interrupted while ZeroMQ is running
+     */
     public static void main(String[] args) throws InterruptedException {
         ZMQ.Context context = ZMQ.context(1);
 
@@ -87,15 +129,17 @@ public class Main {
                     
                     if(!hasUser(command[1])) {
                         System.out.println("User not found");
+                        
                     }
-                    
-                    // Get user from username
-                    User user = getUser(command[1]);
-                    
-                    // Remove user and distribute update
-                    Main.distributeUserUpdate(user, Requestor.CHANGE_DISCONNECTED);
-                    Main.users.remove(user);
-                    user.requestor.removeUser();
+                    else {
+                        // Get user from username
+                        User user = getUser(command[1]);
+                        
+                        // Remove user and distribute update
+                        Main.distributeUserUpdate(user, Requestor.CHANGE_DISCONNECTED);
+                        Main.users.remove(user);
+                        user.requestor.removeUser();
+                    }
                 }
             }
         }).start();
@@ -139,6 +183,12 @@ public class Main {
         System.exit(0);
     }
     
+    /**
+     * Checks if a given user is online
+     * 
+     * @param username The username of the user
+     * @return Whether the user is online or not
+     */
     public static boolean hasUser(String username) {
         for(User user : users) {
             if(user.username.equals(username)) {
@@ -149,6 +199,12 @@ public class Main {
         return false;
     }
     
+    /**
+     * Checks if a given chat exists
+     * 
+     * @param chatId The ID of the chat
+     * @return Whether the chat exists or not
+     */
     public static boolean hasChat(int chatId) {
         for(ChatRoom chat : chats) {
             if(chat.id == chatId) {
@@ -159,7 +215,13 @@ public class Main {
         return false;
     }
     
-    
+    /**
+     * Gets a {@code ChatRoom} object for the given chat ID
+     * 
+     * @param id The ID of the chat
+     * @return The {@code ChatRoom} object
+     * @throws NoSuchElementException If the chat can't be found
+     */
     public static ChatRoom getChat(int id) throws NoSuchElementException {
         for(ChatRoom chat : chats) {
             if(chat.id == id) {
@@ -170,6 +232,13 @@ public class Main {
         throw new NoSuchElementException();
     }
     
+    /**
+     * Gets a {@code User} object for the given username
+     * 
+     * @param username The username of the user
+     * @return The {@code User} object
+     * @throws NoSuchElementException If the user can't be found
+     */
     public static User getUser(String username) throws NoSuchElementException {
         for(User user : users) {
             if(user.username.equals(username)) {
@@ -180,6 +249,11 @@ public class Main {
         throw new NoSuchElementException();
     }
     
+    /**
+     * Distributes a new message to all users that should receive it
+     * 
+     * @param message The message to distribute
+     */
     public static void distributeNewMessage(Message message) {
         // Distribute chat messages to correct users
         for(User user : users) {
@@ -194,6 +268,12 @@ public class Main {
         }
     }
     
+    /**
+     * Distributes a new chat update to all users
+     * 
+     * @param chat The chat that has an update
+     * @param update The update
+     */
     public static void distributeChatUpdate(ChatRoom chat, int update) {
         // Add updates to users so the update will not be removed from each user until they are given it
         for(User user : users) {
@@ -201,6 +281,12 @@ public class Main {
         }
     }
     
+    /**
+     * Distributes a new user update to all users
+     * 
+     * @param user The user that has an update
+     * @param update The update
+     */
     public static void distributeUserUpdate(User user, int update) {
         // Add updates to users so the update will not be removed from each user until they are given it
         for(User onlineUser : users) {

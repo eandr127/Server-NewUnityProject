@@ -13,85 +13,232 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Handles all requests for each requester.
+ */
 public class Requestor {
     // All update codes for users and/or chats
+    /**
+     * A user joined the server
+     * or a chat was added to the server
+     */
     public static final int CHANGE_CONNECTED = 1;
+    
+    /**
+     * A user left the server
+     * or a chat was removed to the server
+     */
     public static final int CHANGE_DISCONNECTED = 2;
+    
+    /**
+     * A user changed their nickname
+     * or a chat's name was changed (unused)
+     */
     public static final int CHANGE_CHANGED_NICKNAME = 3;
+    
+    /**
+     * A user changed their profile picture
+     */
     public static final int CHANGE_CHANGED_PICTURE = 4;
     
-    // All request codes recieved from clients so we know what they want us to do
-    // These also all return the result code for the Requestor
-    
-    // String username, string nickname -> void
+    // All request codes received from clients so we know what they want us to do
+    // These also all return the result code for the Requester
+    /**
+     * Requests to log in to the server
+     * 
+     * (Sting username, String nickname) -> void
+     */
     public static final int REQUEST_LOGIN = 0;
     
-    // () -> int chats
+    /**
+     * Requests the number of chats online
+     * 
+     * Must be logged in to use this request
+     * () -> int chats
+     */
     public static final int REQUEST_CHATS_ONLINE = 1;
     
-    // int chatIDX -> int chatID
+    /**
+     * Requests the chat id by index
+     * 
+     * Must be logged in to use this request
+     * (int chatIndex) -> int chatID
+     */
     public static final int REQUEST_CHAT = 2;
     
-    // int chatID -> String chatName
+    /**
+     * Requests the chat name by id
+     * 
+     * Must be logged in to use this request
+     * (int chatID) -> String chatName
+     */
     public static final int REQUEST_CHAT_NAME = 3;
     
-    // int chatID -> encoded int updates (in binary could be: 000, 001, 010, 011, 100, 101, 110, 111)
+    /**
+     * Gets a new chat update or nothing if there aren't any
+     * 
+     * Must be logged in to use this request
+     * () -> Optional(Chat, int[] updates (separated by commas))
+     */
     public static final int REQUEST_CHAT_UPDATES = 4;
     
-    // () -> int chats
+    /**
+     * Requests the number of users online
+     * 
+     * Must be logged in to use this request
+     * () -> int users
+     */
     public static final int REQUEST_USERS_ONLINE = 5;
     
-    // int userIDX -> string username
+    /**
+     * Requests the username by index
+     * 
+     * Must be logged in to use this request
+     * (int userIndex) -> String username
+     */
     public static final int REQUEST_USER = 6;
     
-    // String username -> String nickname
+    /**
+     * Requests the user nickname by username
+     * 
+     * Must be logged in to use this request
+     * (String username) -> String nickanme
+     */
     public static final int REQUEST_USER_NICKNAME = 7;
     
-    // String username -> encoded int updates (in binary could be: 000, 001, 010, 011, 100, 101, 110, 111)
+    /**
+     * Gets a new user update or nothing if there aren't any
+     * 
+     * Must be logged in to use this request
+     * () -> Optional(User, int[] updates (separated by commas))
+     */
     public static final int REQUEST_USER_UPDATES = 8;
     
-    // () -> IntString/String chatID/username, String message, String utcTime
+    /**
+     * Gets a new message or nothing if there aren't any
+     * 
+     * Must be logged in to use this request
+     * () -> String fromUser, boolean chooseNextArg, (int chatID or String username), String message, String utcTime
+     */
     public static final int REQUEST_NEW_MESSAGE = 9;
     
-    // IntString/String chatID/username, String message, String utcTime -> boolean success
+    /**
+     * Sends a message to a user
+     * 
+     * Must be logged in to use this request
+     * (boolean chooseNextArg, (int chatID or String username), String message, String utcTime) -> void
+     */
     public static final int REQUEST_SEND_MESSAGE = 10;
     
-    // () -> void
+    /**
+     * Logs user out of the server
+     * 
+     * Must be logged in to use this request
+     * () -> void
+     */
     public static final int REQUEST_LOGOUT = 11;
     
-    // () -> void
+    /**
+     * Resets kick timer for requester
+     * 
+     * Must be logged in to use this request
+     * () -> void
+     */
     public static final int REQUEST_KEEP_ALIVE = 12;
     
-    // String nickname -> void
+    /**
+     * Sets the nickname of the user
+     * 
+     * Must be logged in to use this request
+     * () -> void
+     */
     public static final int REQUEST_SET_NICKNAME = 13;
     
-    // String username -> imagedatastream
+    /**
+     * Gets a user's profile picture
+     * 
+     * Must be logged in to use this request
+     * (String username) -> boolean hasPicture, Optional(Base64 image)
+     */
     public static final int REQUEST_USER_PICTURE = 14;
     
-    // String imagedatastream -> void
+    /**
+     * Sets the user's profile picture
+     * 
+     * Must be logged in to use this request
+     * (boolean hasImage, Base64 image) -> void
+     */
     public static final int REQUEST_SET_USER_PICTURE = 15;
     
-    // String chatroom name -> chat id
+    /**
+     * Creates a chatroom with a specified name
+     * 
+     * Must be logged in to use this request
+     * (String name) -> int chatID
+     */
     public static final int REQUEST_CREATE_CHAT_ROOM = 16;
     
     
     // Result codes tell the client what happened with the request
+    /**
+     * Operation was successful
+     */
     public static final int RESULT_SUCCESS = 0;
+    
+    /**
+     * Unable to connect
+     */
     public static final int RESULT_COULD_NOT_CONNECT = -1;
+    
+    /**
+     * Username taken
+     */
     public static final int RESULT_USERNAME_TAKEN = -2;
+    
+    /**
+     * Unknown username
+     */
     public static final int RESULT_UNKNOWN_USERNAME = -3;
+    
+    /**
+     * No user logged into server
+     */
     public static final int RESULT_NOT_LOGGED_IN = -4;
+    
+    /**
+     * You are already logged in
+     */
     public static final int RESULT_ALREADY_LOGGED_IN = -5;
+    
+    /**
+     * This chat is missing
+     */
     public static final int RESULT_UNKNOWN_CHAT = -6;
+    
+    /**
+     * Bad request
+     */
     public static final int RESULT_BAD_REQUEST = -7;
+    
+    /**
+     * Unknown error occurred
+     */
     public static final int RESULT_FAILURE_UNKNOWN = -8;
     
-    // Timeout before kicking requester
-    // This timer is reset every client main loop so this should be a fair time
+    /**
+     * Timeout before kicking requester.
+     * This timer is reset every client main loop so this should be a fair time
+     */
     public static final int TIMEOUT = 30000;
     
     private static final Set<Requestor> requestors = new HashSet<>();
     
+    /**
+     * Finds an already existing requester with same name or creates a new one
+     * 
+     * @param name The name of the requester to search for
+     * @return The requester found or created
+     */
     public static Requestor findOrCreateRequestor(String name) {
         // Look for requester with same UUID
         Requestor requestor = null;
@@ -111,6 +258,9 @@ public class Requestor {
         return requestor;
     }
     
+    /**
+     * Stops all kick timers so the server can safely exit
+     */
     public static void stopAllTimers() {
         // Shut down all times so server can exit
         for(Requestor requestor : requestors) {
@@ -121,7 +271,12 @@ public class Requestor {
     }
     
     private User user;
+    
+    /**
+     * The UUID of the requester used to identify it
+     */
     public final String worker;
+    
     private ScheduledExecutorService timer;
     
     private Requestor(String worker) {
@@ -142,14 +297,31 @@ public class Requestor {
         }
     }
     
+    /**
+     * Checks whether the requester has a user logged in
+     * 
+     * @return Whether the user is logged in
+     */
     public boolean checkLoggedIn() {
         return user != null;
     }
     
+    /**
+     * Removes the user from this requester
+     */
     public void removeUser() {
         user = null;
     }
     
+    /**
+     * Handles a request. First parsing the requestLine to figure out the request type,
+     * then returning the correct reply String to send back
+     * 
+     * @param requestLine The request type as an unparsed String
+     * @param arguments The other arguments sent by the client
+     * 
+     * @return The String to reply with
+     */
     public String handleRequest(String requestLine, String[] arguments) {
         int requestId = -1;
         
