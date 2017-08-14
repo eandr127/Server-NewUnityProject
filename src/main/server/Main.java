@@ -160,25 +160,23 @@ public class Main {
                 
             // Loop until a request was received
             if(request != null) {
-                new Thread(() -> {
-                    // Tell the requester that the server is stopping so that it can log out
-                    if(stop) {
-                        responder.send(String.valueOf(Requestor.RESULT_COULD_NOT_CONNECT));
-                    }
-                    else {
-                        // Separate each part of the request by newlines
-                        String[] paramaters = request.split("\\n");
-                        
-                        // Get information for requester, or create it if it doesn't exist
-                        Requestor requestor = Requestor.findOrCreateRequestor(paramaters[0]);
-                        
-                        // With the information about the requester, parse the request making a reply to send back to the requester
-                        String reply = requestor.handleRequest(paramaters[1], Arrays.copyOfRange(paramaters, 2, paramaters.length));
-                        
-                        // Send the data
-                        responder.send(reply.getBytes(), 0);
-                    }
-                }).start();
+                // Tell the requester that the server is stopping so that it can log out
+                if(stop) {
+                    responder.send(String.valueOf(Requestor.RESULT_COULD_NOT_CONNECT));
+                }
+                else {
+                    // Separate each part of the request by newlines
+                    String[] paramaters = request.split("\\n");
+                    
+                    // Get information for requester, or create it if it doesn't exist
+                    Requestor requestor = Requestor.findOrCreateRequestor(paramaters[0]);
+                    
+                    // With the information about the requester, parse the request making a reply to send back to the requester
+                    String reply = requestor.handleRequest(paramaters[1], Arrays.copyOfRange(paramaters, 2, paramaters.length));
+                    
+                    // Send the data
+                    responder.send(reply.getBytes(), 0);
+                }
             }
         }
         
