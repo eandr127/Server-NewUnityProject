@@ -221,9 +221,14 @@ public class Requestor {
     public static final int RESULT_BAD_REQUEST = -7;
     
     /**
+     * Text was too long
+     */
+    public static final int RESULT_TEXT_TOO_LONG = -8;
+    
+    /**
      * Unknown error occurred
      */
-    public static final int RESULT_FAILURE_UNKNOWN = -8;
+    public static final int RESULT_FAILURE_UNKNOWN = -9;
     
     /**
      * Timeout before kicking requester.
@@ -343,6 +348,9 @@ public class Requestor {
                 }
                 if(Main.hasUser(arguments[0])) {
                     return String.valueOf(RESULT_USERNAME_TAKEN);
+                }
+                if(arguments[0].length() > 40 || arguments[1].length() > 40) {
+                    return String.valueOf(RESULT_TEXT_TOO_LONG);
                 }
                 else {
                     // Create new user 
@@ -536,6 +544,9 @@ public class Requestor {
                 }
                 if(arguments.length != 4) {
                     return String.valueOf(RESULT_BAD_REQUEST);
+                }
+                if(arguments[2].length() > 1000) {
+                    return String.valueOf(RESULT_TEXT_TOO_LONG);
                 }
                 
                 Message message = null;
